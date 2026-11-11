@@ -8,6 +8,18 @@ These local artifacts can be regenerated with `plugins/jdbc/gradlew.bat
 -p plugins/jdbc shadowJar` and the layout in `plugins/jdbc/package.sh`.
 
 Select **Sybase ASE (jTDS)** in the SQL category when creating a connection.
+Leave **URL (optional)** blank to use host (default `127.0.0.1`), port
+(default `5000`) and an optional database (blank by default). Connection parameters default to
+`TDS=5.0;charset=cp936`; charset can be changed in connection parameters.
+DBX generates the complete URL when saving or testing, including parameters,
+so the existing custom JDBC plugin remains compatible. The managed driver and
+jTDS driver class are configured internally; the form does not expose driver
+JAR, classpath or class overrides.
+
+A manually entered JDBC URL takes priority over the structured target and
+charset parameters. Existing full-URL connections remain in this mode; clear
+the URL to switch to structured fields. These changes do not alter credentials.
+
 Install **Sybase ASE (jTDS)** in the Driver Manager. This installs the optional
 JDBC plugin and resolves `net.sourceforge.jtds:jtds:1.3.1` from Maven Central.
 The driver is downloaded separately; it is not embedded in the desktop EXE or

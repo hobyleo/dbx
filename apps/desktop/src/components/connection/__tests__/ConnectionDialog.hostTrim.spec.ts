@@ -4,6 +4,7 @@ import { createApp, defineComponent, h, nextTick, reactive, type App } from "vue
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import type { ConnectionConfig } from "@/types/database";
+import { prepareSybaseConnection } from "@/lib/database/sybaseConnectionForm";
 
 const { store, settings, backend } = vi.hoisted(() => ({
   store: {
@@ -226,5 +227,92 @@ describe("ConnectionDialog whitespace trimming", () => {
     await saveDialog();
 
     expect(store.updateConnection).toHaveBeenCalledWith(expect.objectContaining({ host: "/tmp/ spaced name.db " }));
+  });
+});
+
+describe("ConnectionDialog Sybase structured fields", () => {
+  const sybaseConnection = () => ({
+    ...postgresConnection(),
+    id: "sybase-1",
+    name: "Sybase",
+    db_type: "jdbc" as const,
+    driver_profile: "sybase-ase",
+    host: "ase.local",
+    port: 5000,
+    database: "pos",
+    username: "sa",
+    password: "",
+    connection_string: "",
+    url_params: "",
+  });
+
+  it("reopens structured fields, hides driver and charset controls, and saves edited fields", async () => {
+    await mountDialog(prepareSybaseConnection(sybaseConnection()));
+    const url = document.querySelector<HTMLInputElement>("#sybase-jdbc-url")!;
+    const host = document.querySelector<HTMLInputElement>("#sybase-host")!;
+    const port = document.querySelector<HTMLInputElement>("#sybase-port")!;
+    const database = document.querySelector<HTMLInputElement>("#sybase-database")!;
+    expect(document.querySelector("#sybase-charset")).toBeNull();
+    expect(url.value).toBe("");
+    expect(host.disabled).toBe(false);
+    expect(port.value).toBe("5000");
+    expect(document.querySelector("textarea[placeholder*='JAR']")).toBeNull();
+    expect(document.querySelector("label[for='sybase-jdbc-url']")?.textContent).toBe("URL (optional)");
+    expect(port.getAttribute("aria-label")).toBe("Port");
+    expect([...document.querySelectorAll("button")].some((button) => /Driver Manager|jTDS.*[Dd]ocs/.test(button.textContent || ""))).toBe(false);
+    setInputValue(host, "new.local");
+    setInputValue(port, "5100");
+    setInputValue(database, "testdb");
+    await settle();
+    await saveDialog();
+    expect(store.updateConnection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: "new.local",
+        port: 5100,
+        database: "testdb",
+        password: "",
+        connection_string: "jdbc:jtds:sybase://new.local:5100/testdb;TDS=5.0;charset=cp936",
+        url_params: "",
+      }),
+    );
+  });
+
+  it("preserves legacy full URLs", async () => {
+    const connection_string = "jdbc:jtds:sybase://old.local:4100/legacy;TDS=5.0;charset=cp936";
+    await mountDialog({ ...sybaseConnection(), host: "", port: 0, connection_string });
+    const host = document.querySelector<HTMLInputElement>("#sybase-host")!;
+    expect(host.value).toBe("old.local");
+    expect(host.disabled).toBe(true);
+    expect(document.querySelector<HTMLInputElement>("#sybase-database")?.disabled).toBe(true);
+    await saveDialog();
+    expect(store.updateConnection).toHaveBeenCalledWith(expect.objectContaining({ connection_string }));
+  });
+
+  it("switches a legacy URL to structured fields when cleared, retaining its charset and options", async () => {
+    await mountDialog({ ...sybaseConnection(), host: "", port: 0, connection_string: "jdbc:jtds:sybase://old.local:4100/legacy;TDS=5.0;charset=gbk;appName=DBX" });
+    setInputValue(document.querySelector<HTMLInputElement>("#sybase-jdbc-url")!, "");
+    await settle();
+    expect(document.querySelector<HTMLInputElement>("#sybase-host")?.disabled).toBe(false);
+    expect(document.querySelector("#sybase-charset")).toBeNull();
+    await saveDialog();
+    expect(store.updateConnection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: "old.local",
+        port: 4100,
+        database: "legacy",
+        connection_string: "jdbc:jtds:sybase://old.local:4100/legacy;appName=DBX;TDS=5.0;charset=gbk",
+      }),
+    );
+  });
+
+  it("switches to an explicit URL without overwriting its charset with form defaults", async () => {
+    await mountDialog(prepareSybaseConnection(sybaseConnection()));
+    const url = "jdbc:jtds:sybase://manual.local:5200/other;charset=gbk;TDS=5.0";
+    setInputValue(document.querySelector<HTMLInputElement>("#sybase-jdbc-url")!, url);
+    await settle();
+    expect(document.querySelector<HTMLInputElement>("#sybase-host")?.disabled).toBe(true);
+    expect(document.querySelector("#sybase-charset")).toBeNull();
+    await saveDialog();
+    expect(store.updateConnection).toHaveBeenCalledWith(expect.objectContaining({ connection_string: url, host: "manual.local", port: 5200, database: "other" }));
   });
 });

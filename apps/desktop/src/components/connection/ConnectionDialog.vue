@@ -263,6 +263,8 @@ import {
   jdbcProductProfileForConfig,
   jdbcProductProfileIdsForCategory,
 } from "@/lib/database/jdbcProductProfiles";
+import JdbcDriverFields from "./JdbcDriverFields.vue";
+import { prepareSybaseConnection, restoreSybaseForm, sybaseDefaultParameters, sybaseUrlPreview } from "@/lib/database/sybaseConnectionForm";
 
 type DbOption = Omit<ConnectionPickerOption, "category"> & { category?: DbCategoryKey; plugin?: boolean; pluginId?: string; pluginIcon?: string };
 type DbCategoryKey = ConnectionProfileCategory | "plugins";
@@ -2963,7 +2965,7 @@ function restoreJdbcProductConnectionDefaultsIfEmpty() {
   const profile = activeJdbcProductProfile.value;
   if (!profile) return;
   const defaults = jdbcProductConnectionDefaults(profile, jdbcProductConnectionMode.value);
-  form.value.connection_string = form.value.connection_string?.trim() || defaults.connectionString;
+  if (profile.id !== "sybase-ase") form.value.connection_string = form.value.connection_string?.trim() || defaults.connectionString;
   form.value.jdbc_driver_class = form.value.jdbc_driver_class?.trim() || defaults.driverClass;
 }
 
@@ -3069,6 +3071,12 @@ function applyProfile(val: string, preserveConnectionFields = false) {
         const fields = jdbcProductConnectionDefaults(jdbcProductProfile, jdbcProductConnectionMode.value);
         form.value.connection_string = fields.connectionString;
         form.value.jdbc_driver_class = fields.driverClass;
+        if (val === "sybase-ase") {
+          form.value.connection_string = "";
+          form.value.host = "127.0.0.1";
+          form.value.database = "";
+          form.value.url_params = sybaseDefaultParameters();
+        }
       } else if (val === JDBCX_DRIVER_PROFILE) {
         form.value.connection_string = JDBCX_DEFAULT_URL;
         form.value.jdbc_driver_class = JDBCX_JDBC_DRIVER_CLASS;
@@ -3487,6 +3495,7 @@ watch(
       dremioConnectionMode.value = profile === "dremio" ? dremioConnectionModeForConfig(config) : "legacy";
       resetDremioConnectionUrls(dremioConnectionMode.value, profile === "dremio" ? config.connection_string : undefined);
       resetJdbcProductConnectionFields(jdbcProductProfileForConfig(config), config);
+      if (config.db_type === "jdbc" && config.driver_profile === "sybase-ase") form.value = restoreSybaseForm(form.value);
       mongoUseUrl.value = !!config.connection_string;
       jdbcDriverPathsInput.value = (config.jdbc_driver_paths || []).join("\n");
       jdbcManualClasspathOpen.value = supportsNativeAgentJdbcDriverConfigType(config.db_type) || (config.jdbc_driver_paths || []).length > 0;
@@ -4042,6 +4051,9 @@ function supportsNativeAgentJdbcDriverConfigType(dbType: DatabaseType): boolean 
 const jdbcBackedDatabaseTypes = new Set<DatabaseType>(["jdbc", "prestosql", "bigquery"]);
 const connectionFormKind = computed(() => databaseConnectionFormKind(form.value.db_type));
 const isJdbcConnection = computed(() => connectionFormKind.value === "jdbc");
+const isSybaseConnection = computed(() => isJdbcConnection.value && form.value.driver_profile === "sybase-ase");
+const sybaseManualUrl = computed(() => Boolean(form.value.connection_string?.trim()));
+const sybaseGeneratedUrl = computed(() => sybaseUrlPreview(form.value));
 const isJdbcxConnection = computed(() => isJdbcConnection.value && form.value.driver_profile === JDBCX_DRIVER_PROFILE);
 const isJdbcProductConnection = computed(() => Boolean(activeJdbcProductProfile.value));
 const jdbcxHighPrivilegeExtensionsAllowed = computed({
@@ -5651,6 +5663,9 @@ function connectionConfigForSubmit(id: string, generatedName = "", validatePlugi
     if (config.db_type === "jdbc") {
       if (config.driver_profile === "dremio") {
         applyDremioJdbcMetadata(config);
+      } else if (config.driver_profile === "sybase-ase") {
+        config = prepareSybaseConnection(config);
+        config.jdbc_driver_class = config.jdbc_driver_class?.trim() || "net.sourceforge.jtds.jdbc.Driver";
       } else if (jdbcProductProfileForConfig(config)) {
         const jdbcProductProfile = jdbcProductProfileForConfig(config)!;
         const defaults = jdbcProductConnectionDefaults(jdbcProductProfile, jdbcProductProfile.detectMode(config));
@@ -7820,6 +7835,10 @@ function openExternalUrl(url: string) {
 
             <TabsContent value="connection" class="m-0 flex min-h-0 flex-1 flex-col overflow-hidden">
               <div class="connection-form-body grid min-h-0 flex-1 scroll-pb-6 gap-4 overflow-y-auto pt-4 pr-2 pb-6" :class="{ 'connection-form-body--nacos': form.db_type === 'nacos' }">
+                <div v-if="isSybaseConnection" class="grid grid-cols-4 items-center gap-4" data-sybase-url-row>
+                  <Label for="sybase-jdbc-url" :class="connectionLabelClass">{{ t("connection.sybaseUrlOptional") }}</Label>
+                  <Input id="sybase-jdbc-url" v-model="form.connection_string" class="col-span-3" :placeholder="sybaseGeneratedUrl" :title="t(sybaseManualUrl ? 'connection.sybaseManualUrlHint' : 'connection.sybaseGeneratedUrlHint')" />
+                </div>
                 <div v-if="!isPluginConnection && !isJdbcConnection && form.db_type !== 'nacos' && form.db_type !== 'consul' && form.db_type !== 'mq' && form.db_type !== 'salesforce'" class="grid grid-cols-4 items-center gap-4">
                   <Label :class="connectionLabelClass">{{ t("connection.connectionUrlOptional") }}</Label>
                   <div class="col-span-3 flex items-center gap-1">
@@ -8048,7 +8067,7 @@ function openExternalUrl(url: string) {
                         </Button>
                       </div>
                     </div>
-                    <div v-if="activeJdbcProductProfile && activeJdbcProductMode" class="grid grid-cols-4 items-start gap-4">
+                    <div v-if="activeJdbcProductProfile && activeJdbcProductMode && !isSybaseConnection" class="grid grid-cols-4 items-start gap-4">
                       <span />
                       <div class="col-span-3 space-y-1 text-xs text-muted-foreground">
                         <p>{{ t(activeJdbcProductMode.hintKey) }}</p>
@@ -8058,7 +8077,7 @@ function openExternalUrl(url: string) {
                         </p>
                       </div>
                     </div>
-                    <div class="grid grid-cols-4 items-center gap-4">
+                    <div v-if="!isSybaseConnection" class="grid grid-cols-4 items-center gap-4">
                       <Label :class="connectionLabelClass">{{ t("connection.jdbcUrl") }}</Label>
                       <Input v-model="form.connection_string" class="col-span-3" :placeholder="t('connection.jdbcUrlPlaceholder')" @blur="syncJdbcProfileModeFromUrl" />
                     </div>
@@ -8072,6 +8091,11 @@ function openExternalUrl(url: string) {
                         <Switch v-model="jdbcxHighPrivilegeExtensionsAllowed" class="mt-0.5 shrink-0" />
                       </div>
                     </div>
+                    <div v-if="isSybaseConnection" class="grid grid-cols-4 items-center gap-4">
+                      <Label for="sybase-host" :class="connectionLabelClass">{{ t("connection.host") }}</Label>
+                      <Input id="sybase-host" v-model="form.host" class="col-span-2" placeholder="127.0.0.1" :disabled="sybaseManualUrl" />
+                      <Input id="sybase-port" v-model.number="form.port" type="number" :min="1" :max="65535" class="col-span-1" placeholder="5000" :aria-label="t('connection.port')" :disabled="sybaseManualUrl" />
+                    </div>
                     <div class="grid grid-cols-4 items-center gap-4">
                       <Label :class="connectionLabelClass">{{ t("connection.user") }}</Label>
                       <Input v-model="form.username" class="col-span-3" :placeholder="jdbcUsernamePlaceholder" />
@@ -8081,50 +8105,26 @@ function openExternalUrl(url: string) {
                       <PasswordInput v-model="form.password" class="col-span-3" />
                     </div>
                     <SavePasswordCheckbox v-model="form.save_password" />
-                    <div class="grid grid-cols-4 items-start gap-4">
-                      <Label :class="connectionLabelTopClass">{{ t("connection.jdbcDriverPaths") }}</Label>
-                      <div class="col-span-3 space-y-2">
-                        <Select v-if="jdbcDriverSelectItems.length > 0" :model-value="selectedJdbcDriverPath" @update:model-value="onJdbcDriverSelect">
-                          <SelectTrigger>
-                            <SelectValue :placeholder="t('connection.jdbcDriverSelectPlaceholder')" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem v-for="driver in jdbcDriverSelectItems" :key="driver.id" :value="driver.id">
-                              {{ driver.label }}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <div class="flex items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2">
-                          <div class="flex min-w-0 items-center gap-2">
-                            <div class="truncate text-xs font-medium">{{ t("connection.jdbcManualClasspath") }}</div>
-                            <Badge variant="outline" class="h-5 shrink-0 rounded-full px-2 text-[10px] font-medium">
-                              {{ t("connection.jdbcManualClasspathCount", { count: jdbcManualClasspathCount }) }}
-                            </Badge>
-                          </div>
-                          <Switch v-model="jdbcManualClasspathOpen" />
-                        </div>
-                        <div v-if="jdbcManualClasspathOpen" class="flex items-start gap-1">
-                          <textarea
-                            v-model="jdbcDriverPathsInput"
-                            class="flex min-h-12 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            :placeholder="t('connection.jdbcDriverPathsPlaceholder')"
-                          />
-                          <Tooltip v-if="isDesktop">
-                            <TooltipTrigger as-child>
-                              <Button type="button" variant="outline" size="icon" class="h-9 w-9 shrink-0" @click="browseJdbcDriverPaths">
-                                <FolderOpen class="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{{ t("connection.jdbcDriverBrowse") }}</TooltipContent>
-                          </Tooltip>
-                        </div>
+                    <template v-if="isSybaseConnection">
+                      <div class="grid grid-cols-4 items-center gap-4">
+                        <Label for="sybase-database" :class="connectionLabelClass">{{ t("connection.database") }}</Label>
+                        <Input id="sybase-database" v-model="form.database" class="col-span-3" :placeholder="t('connection.databasePlaceholder')" :disabled="sybaseManualUrl" />
                       </div>
-                    </div>
-                    <div class="grid grid-cols-4 items-center gap-4">
-                      <Label :class="connectionLabelClass">{{ t("connection.jdbcDriverClass") }}</Label>
-                      <Input v-model="form.jdbc_driver_class" class="col-span-3" :placeholder="t('connection.jdbcDriverClassPlaceholder')" />
-                    </div>
-                    <div class="grid grid-cols-4 items-start gap-4">
+                    </template>
+                    <JdbcDriverFields
+                      v-if="!isSybaseConnection"
+                      v-model:driver-class="form.jdbc_driver_class"
+                      v-model:paths="jdbcDriverPathsInput"
+                      v-model:manual-open="jdbcManualClasspathOpen"
+                      :jdbc-driver-select-items="jdbcDriverSelectItems"
+                      :selected-jdbc-driver-path="selectedJdbcDriverPath"
+                      :is-desktop="isDesktop"
+                      :connection-label-class="connectionLabelClass"
+                      :connection-label-top-class="connectionLabelTopClass"
+                      @select="onJdbcDriverSelect"
+                      @browse="browseJdbcDriverPaths"
+                    />
+                    <div v-if="!isSybaseConnection" class="grid grid-cols-4 items-start gap-4">
                       <span />
                       <div class="col-span-3 space-y-2">
                         <p v-if="!isJdbcProductConnection" class="text-xs text-muted-foreground">

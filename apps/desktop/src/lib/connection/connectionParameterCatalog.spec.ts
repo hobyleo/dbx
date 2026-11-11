@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { connectionParameterCatalog } from "./connectionParameterCatalog";
+import { connectionParameterCatalog, connectionParameterSyntax } from "./connectionParameterCatalog";
+import { parseConnectionParameters } from "./connectionParameterDocument";
 
 const names = (db_type: string, driver_profile?: string) => connectionParameterCatalog({ db_type, driver_profile }).map((parameter) => parameter.name);
 
 describe("transport-specific connection parameter catalog", () => {
+  it("edits Sybase parameters as literal semicolon properties with an editable charset", () => {
+    const context = { db_type: "jdbc", driver_profile: "sybase-ase" };
+    const document = parseConnectionParameters("TDS=5.0;charset=cp936;appName=DBX 中文&tools", connectionParameterSyntax(context));
+    expect(document.entries.map(({ key, value }) => [key, value])).toEqual([
+      ["TDS", "5.0"],
+      ["charset", "cp936"],
+      ["appName", "DBX 中文&tools"],
+    ]);
+    expect(connectionParameterCatalog(context).find((parameter) => parameter.name === "charset")?.managedBy).toBeUndefined();
+  });
   it("does not advertise the ignored PostgreSQL JDBC stringtype compatibility parameter", () => {
     for (const type of ["postgres", "redshift"]) {
       expect(names(type)).not.toContain("stringtype");

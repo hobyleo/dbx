@@ -1617,6 +1617,7 @@ export default {
     notePlaceholder: "Do not store passwords in plaintext in notes",
     type: "Type",
     host: "Host",
+    port: "Port",
     addHost: "Add Host",
     filePath: "File Path",
     h2FileMode: "File",
@@ -2522,6 +2523,9 @@ export default {
     phoenixDirectMode: "Direct",
     sybaseJtdsMode: "jTDS",
     sybaseRuntimeOption: "Sybase ASE jTDS ({mode})",
+    sybaseUrlOptional: "URL (optional)",
+    sybaseGeneratedUrlHint: "Leave blank to generate the JDBC URL from the fields below.",
+    sybaseManualUrlHint: "The JDBC URL takes priority over host, port, database and character set fields.",
     sybaseJtdsModeHint:
       "For legacy Sybase ASE, including 12.0. Replace the host, port and database in the JDBC URL; defaults are TDS 5.0 and cp936 (Simplified Chinese). The server's 32-bit architecture does not require a 32-bit client. Pagination skips rows through JDBC and may be slower on large tables.",
     sybaseDriverManagerHintPrefix: "Install jTDS in the ",

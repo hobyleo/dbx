@@ -71,6 +71,7 @@ const ORACLE_PARAMETERS = [
 
 export function connectionParameterSyntax(context: ConnectionParameterContext): ParameterSyntax {
   const url = context.connection_string?.trim().toLowerCase() ?? "";
+  if (context.driver_profile === "sybase-ase" || /^jdbc:(jtds:sybase|sybase):/.test(url)) return LITERAL_PARAMETER_SYNTAX;
   if (context.db_type === "sqlserver" || url.startsWith("jdbc:sqlserver:")) return SQLSERVER_PARAMETER_SYNTAX;
   if (context.db_type === "teradata" || url.startsWith("jdbc:teradata:")) return TERADATA_PARAMETER_SYNTAX;
   if (["db2", "informix", "gbase8s"].includes(context.db_type) || /^jdbc:(db2|informix-sqli|gbasedbt-sqli):/.test(url)) return { ...LITERAL_PARAMETER_SYNTAX, leadingColon: true };
@@ -81,6 +82,9 @@ export function connectionParameterSyntax(context: ConnectionParameterContext): 
 }
 
 export function connectionParameterCatalog(context: ConnectionParameterContext): ConnectionParameterDefinition[] {
+  if (context.db_type === "jdbc" && context.driver_profile === "sybase-ase") {
+    return [param("TDS", "string", "TDS protocol version. ASE 12.0 uses 5.0.", "TDS 协议版本，ASE 12.0 使用 5.0。", { defaultValue: "5.0" }), param("charset", "string", "Connection character set.", "连接字符集。", { defaultValue: "cp936" })];
+  }
   switch (context.db_type) {
     case "mysql": {
       const profile = context.driver_profile?.trim().toLowerCase() ?? "";
