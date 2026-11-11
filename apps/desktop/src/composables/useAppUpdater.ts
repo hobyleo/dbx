@@ -1,3 +1,4 @@
+import { OFFICIAL_UPDATE_POLICY } from "@/lib/updates/officialUpdatePolicy";
 import { computed, ref, watch, onScopeDispose } from "vue";
 import { useI18n } from "vue-i18n";
 import { isTauriRuntime } from "@/lib/backend/tauriRuntime";
@@ -169,7 +170,7 @@ export async function resolveUpdaterProxy(): Promise<string | undefined> {
 export function useAppUpdater(options: UseAppUpdaterOptions = {}) {
   const { t } = useI18n();
   const settingsStore = useSettingsStore();
-  const updaterDisabled = import.meta.env.VITE_DBX_DISABLE_UPDATER === "1";
+  const updaterDisabled = !OFFICIAL_UPDATE_POLICY.app || import.meta.env.VITE_DBX_DISABLE_UPDATER === "1";
   type Phase = "idle" | "checking" | "downloading" | "ready" | "preparing" | "installing" | "restart";
   const phase = ref<Phase>("idle");
   const downloaded = ref<api.DownloadedUpdate | null>(null);

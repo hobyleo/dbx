@@ -1,8 +1,11 @@
 // @vitest-environment happy-dom
-import { createApp, nextTick, type Component } from "vue";
+import { createApp, nextTick } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { createI18n } from "vue-i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const updatePolicy = vi.hoisted(() => ({ app: true, jdbc: true }));
+vi.mock("@/lib/updates/officialUpdatePolicy", () => ({ OFFICIAL_UPDATE_POLICY: updatePolicy }));
 
 vi.mock("@/lib/backend/tauriRuntime", () => ({ isTauriRuntime: () => false }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => undefined) }));
@@ -119,6 +122,7 @@ function mount(props: Record<string, unknown> = {}) {
 
 describe("AppToolbar update entry visibility", () => {
   beforeEach(() => {
+    updatePolicy.app = true;
     pinia = createPinia();
     setActivePinia(pinia);
   });
@@ -126,6 +130,17 @@ describe("AppToolbar update entry visibility", () => {
   afterEach(() => {
     mounted?.unmount();
     mounted = null;
+  });
+
+  it.each([false, true])("hides the update entry when official updates are disabled (available: %s)", async (hasUpdateAvailable) => {
+    updatePolicy.app = false;
+    const settingsStore = useSettingsStore();
+    settingsStore.editorSettings.toolbarItems.checkUpdates = true;
+
+    mounted = mount({ hasUpdateAvailable });
+    await nextTick();
+
+    expect(mounted.host.querySelector("[data-toolbar-update-trigger]")).toBeNull();
   });
 
   it("hides the toolbar update control when checkUpdates is off even if an update is available", async () => {

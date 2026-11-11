@@ -17,6 +17,7 @@ const VALID_CATEGORY_KEYS: ReadonlySet<string> = new Set(DRIVER_CATEGORIES.map((
 const EMPTY = 0;
 
 export const AGENT_DRIVER_CATEGORY_MAP: Readonly<Record<string, DriverCategoryKey>> = {
+  "sybase-ase": "sql",
   access: "lightweight",
   argo: "domestic",
   bigquery: "analytics",

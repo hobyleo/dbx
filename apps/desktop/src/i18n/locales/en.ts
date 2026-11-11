@@ -2520,6 +2520,13 @@ export default {
     dremioArrowFlightSqlMode: "Arrow Flight SQL",
     dremioLegacyJdbcMode: "Legacy JDBC",
     phoenixDirectMode: "Direct",
+    sybaseJtdsMode: "jTDS",
+    sybaseRuntimeOption: "Sybase ASE jTDS ({mode})",
+    sybaseJtdsModeHint:
+      "For legacy Sybase ASE, including 12.0. Replace the host, port and database in the JDBC URL; defaults are TDS 5.0 and cp936 (Simplified Chinese). The server's 32-bit architecture does not require a 32-bit client. Pagination skips rows through JDBC and may be slower on large tables.",
+    sybaseDriverManagerHintPrefix: "Install jTDS in the ",
+    sybaseDriverManagerHintSuffix: ", or select the compatible jTDS JAR used by DataGrip below.",
+    sybaseDocs: "View jTDS documentation",
     phoenixRuntimeOption: "Apache Phoenix JDBC ({mode})",
     phoenixQueryServerMode: "Query Server",
     phoenixDirectModeHint: "Connects directly to HBase. The default runtime targets Phoenix 5.2.1 with HBase 2.5; for other cluster versions, select a compatible Phoenix client and add hbase-site.xml when required.",

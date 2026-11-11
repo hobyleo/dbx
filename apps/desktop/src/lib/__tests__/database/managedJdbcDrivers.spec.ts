@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { installRegisteredManagedJdbcDriver, managedJdbcDriverDefinition, managedJdbcDriverRows } from "@/lib/database/managedJdbcDrivers";
 import { PHOENIX_MANAGED_MAVEN_COORDINATES } from "@/lib/database/phoenixBuiltinDriver";
 import { PRESTOSQL_JDBC_DRIVER_COORDINATE } from "@/lib/database/prestoSqlBuiltinDriver";
+import { SYBASE_JTDS_COORDINATE } from "@/lib/database/sybaseConnection";
 import type { JdbcDriverInfo, JdbcMavenBundleInfo, JdbcPluginStatus } from "@/types/database";
 
 function pluginStatus(): JdbcPluginStatus {
@@ -18,14 +19,14 @@ function pluginStatus(): JdbcPluginStatus {
 }
 
 describe("managedJdbcDrivers", () => {
-  it("registers Phoenix and PrestoSQL through the same row model", () => {
+  it("registers managed JDBC products through the same row model", () => {
     expect(managedJdbcDriverDefinition("phoenix")?.bundles.map(({ coordinate }) => coordinate)).toEqual(PHOENIX_MANAGED_MAVEN_COORDINATES);
     expect(managedJdbcDriverDefinition("prestosql")?.bundles.map(({ coordinate }) => coordinate)).toEqual([PRESTOSQL_JDBC_DRIVER_COORDINATE]);
-    expect(managedJdbcDriverRows([], pluginStatus()).map(({ db_type }) => db_type)).toEqual(["prestosql", "phoenix"]);
+    expect(managedJdbcDriverRows([], pluginStatus()).map(({ db_type }) => db_type)).toEqual(["prestosql", "phoenix", "sybase-ase"]);
   });
 
-  it("marks both managed drivers installed when the offline payload contains every bundle", () => {
-    const coordinates = [PRESTOSQL_JDBC_DRIVER_COORDINATE, ...PHOENIX_MANAGED_MAVEN_COORDINATES];
+  it("marks managed drivers installed when every required bundle is present", () => {
+    const coordinates = [PRESTOSQL_JDBC_DRIVER_COORDINATE, ...PHOENIX_MANAGED_MAVEN_COORDINATES, SYBASE_JTDS_COORDINATE];
     const bundles = coordinates.map((coordinate): JdbcMavenBundleInfo => ({
       id: coordinate.replace(/[^A-Za-z0-9.-]/g, "_"),
       coordinate,
@@ -39,6 +40,7 @@ describe("managedJdbcDrivers", () => {
     expect(managedJdbcDriverRows(bundles, pluginStatus()).map(({ db_type, installed }) => ({ db_type, installed }))).toEqual([
       { db_type: "prestosql", installed: true },
       { db_type: "phoenix", installed: true },
+      { db_type: "sybase-ase", installed: true },
     ]);
   });
 

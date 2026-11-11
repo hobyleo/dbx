@@ -53,6 +53,41 @@ final class DbxJdbcPluginTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
+    void legacySybaseSchemasFollowTheSelectedCatalog() throws Exception {
+        String[] catalog = { "master" };
+        DatabaseMetaData metadata = (DatabaseMetaData) Proxy.newProxyInstance(
+            getClass().getClassLoader(), new Class<?>[] { DatabaseMetaData.class },
+            (proxy, method, args) -> {
+                if ("getSchemas".equals(method.getName())) {
+                    if (args != null && args.length > 0) throw new AbstractMethodError("JDBC 3 driver");
+                    assertEquals("appdb", catalog[0]);
+                    return rowsResultSet(new String[] { "TABLE_SCHEM" }, new Object[][] { { "dbo" } });
+                }
+                return defaultValue(method.getReturnType());
+            }
+        );
+        Connection jdbcConnection = (Connection) Proxy.newProxyInstance(
+            getClass().getClassLoader(), new Class<?>[] { Connection.class },
+            (proxy, method, args) -> {
+                if ("getMetaData".equals(method.getName())) return metadata;
+                if ("setCatalog".equals(method.getName())) { catalog[0] = (String) args[0]; return null; }
+                return defaultValue(method.getReturnType());
+            }
+        );
+        String url = "jdbc:sybase:Tds:schema-catalog-test:5000/master";
+        Driver driver = testDriver(url, jdbcConnection);
+        DriverManager.registerDriver(driver);
+        String connection = "{\"connection_string\":\"" + url + "\"}";
+        try {
+            JsonNode response = request("listSchemas", "{\"connection\":" + connection + ",\"database\":\"appdb\"}");
+            assertFalse(response.has("error"), response.toString());
+            assertEquals("dbo", response.path("result").path(0).asText());
+        } finally {
+            closeAndDeregister(connection, driver);
+        }
+    }
+
+    @Test
     void readsRealH2DriverParametersWithoutConnecting() throws Exception {
         try (java.net.ServerSocket listener = new java.net.ServerSocket(0, 1, java.net.InetAddress.getLoopbackAddress())) {
             listener.setSoTimeout(200);

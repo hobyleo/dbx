@@ -4,6 +4,10 @@ import { useMcpUpdateBadge } from "@/composables/useMcpUpdateBadge";
 import { runPendingComponentUpdatePlan, type PendingComponentUpdates } from "@/lib/updates/componentUpdateOrchestration";
 import { showToolbarUpdateAction } from "@/lib/updates/updateBadges";
 
+// Existing cases exercise the upstream-enabled paths; fork cases below disable them.
+const updatePolicy = vi.hoisted(() => ({ app: true, jdbc: true }));
+vi.mock("@/lib/updates/officialUpdatePolicy", () => ({ OFFICIAL_UPDATE_POLICY: updatePolicy }));
+
 const mocks = vi.hoisted(() => ({
   listInstalledAgents: vi.fn(),
   jdbcPluginStatus: vi.fn(),
@@ -60,6 +64,7 @@ function deferred<T>() {
 }
 
 beforeEach(() => {
+  Object.assign(updatePolicy, { app: true, jdbc: true });
   vi.resetAllMocks();
   Object.assign(settings.editorSettings, {
     autoUpdateDrivers: true,
@@ -490,5 +495,21 @@ describe("useComponentUpdates", () => {
     expect(updates.driverProgressMap.value).toEqual({});
     expect(updates.driverBatchCompleted.value).toBe(0);
     expect(updates.driverBatchTotal.value).toBe(0);
+  });
+});
+
+describe("custom fork updates", () => {
+  it.each(["manual", "automatic"])("keeps other component updates while protecting JDBC during %s updates", async (mode) => {
+    updatePolicy.jdbc = false;
+    const updates = useComponentUpdates({ isDesktop: true });
+    await updates.refresh();
+    expect(updates.jdbcUpdateAvailable.value).toBe(false);
+    expect(updates.totalUpdateCount.value).toBe(3);
+    const result = mode === "automatic" ? await updates.autoUpdateEnabledComponents() : await updates.installCategories(["drivers", "jdbc", "mcp", "plugins"]);
+    expect(mocks.installJdbcPlugin).not.toHaveBeenCalled();
+    expect(result.jdbc).toBe(false);
+    expect(mocks.upgradeAllAgents).toHaveBeenCalledOnce();
+    expect(mocks.installMcpServer).toHaveBeenCalledOnce();
+    expect(mocks.installMarketplacePlugin).toHaveBeenCalledOnce();
   });
 });

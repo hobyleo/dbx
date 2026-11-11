@@ -438,13 +438,13 @@ describe("queryStore table data refresh", () => {
     expect(mocks.executeMulti).toHaveBeenCalledWith("cache-1", "USER", 'SELECT * FROM "SS"."SS_User" ORDER BY "ID" ASC', undefined, expect.any(String), expect.objectContaining({ maxRows: 100, fetchSize: 100, rowOffset: 100 }));
   });
 
-  it("uses JDBC ResultSet offset pagination for dialects that cannot paginate in SQL", async () => {
+  it.each(["jdbc:sybase:Tds:db.example.com:5000/app", "jdbc:jtds:sybase://db.example.com:5000/app;TDS=5.0;charset=cp936"])("uses JDBC ResultSet offset pagination for %s", async (connectionString) => {
     mocks.getConnectionConfig.mockReturnValue({
       id: "sybase-1",
-      name: "Sybase ASE 16",
+      name: "Sybase ASE",
       db_type: "jdbc",
       database: "app",
-      connection_string: "jdbc:sybase:Tds:db.example.com:5000/app",
+      connection_string: connectionString,
       query_timeout_secs: 30,
     });
     mocks.buildTableSelectSql.mockResolvedValue("SELECT * FROM dbo.users ORDER BY id ASC");

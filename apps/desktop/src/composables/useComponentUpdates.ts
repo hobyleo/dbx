@@ -1,3 +1,4 @@
+import { OFFICIAL_UPDATE_POLICY } from "@/lib/updates/officialUpdatePolicy";
 import { computed, ref } from "vue";
 import * as api from "@/lib/backend/api";
 import { currentLocale } from "@/i18n";
@@ -65,7 +66,7 @@ export function useComponentUpdates(options: { isDesktop: boolean }) {
   const driverUpdates = computed(() => drivers.value.filter((driver) => driver.update_available));
   const pluginUpdates = computed(() => pluginListings.value.filter((listing) => listing.status === "update"));
   const driverUpdateCount = computed(() => driverUpdates.value.length);
-  const jdbcUpdateAvailable = computed(() => jdbcPluginStatus.value?.update_available === true);
+  const jdbcUpdateAvailable = computed(() => OFFICIAL_UPDATE_POLICY.jdbc && jdbcPluginStatus.value?.update_available === true);
   const mcpUpdateAvailable = computed(() => (mcpStatus.value ? mcpUpdateAvailability(mcpStatus.value) === true : false));
   const pluginUpdateCount = computed(() => pluginUpdates.value.length);
   const totalUpdateCount = computed(() => driverUpdateCount.value + (jdbcUpdateAvailable.value ? 1 : 0) + (mcpUpdateAvailable.value ? 1 : 0) + pluginUpdateCount.value);
@@ -181,7 +182,7 @@ export function useComponentUpdates(options: { isDesktop: boolean }) {
   }
 
   async function updateJdbc(result: ComponentUpdateResult) {
-    if (!jdbcUpdateAvailable.value) return;
+    if (!OFFICIAL_UPDATE_POLICY.jdbc || !jdbcUpdateAvailable.value) return;
     if (isUpdatePreviewMockEnabled()) {
       result.jdbc = true;
       return;

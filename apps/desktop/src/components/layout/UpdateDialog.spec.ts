@@ -5,6 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import UpdateDialog from "@/components/layout/UpdateDialog.vue";
 
+// Existing cases exercise the upstream-enabled paths; fork cases below disable them.
+const updatePolicy = vi.hoisted(() => ({ app: true, jdbc: true }));
+vi.mock("@/lib/updates/officialUpdatePolicy", () => ({ OFFICIAL_UPDATE_POLICY: updatePolicy }));
+
 const runtimeState = vi.hoisted(() => ({ tauri: true }));
 
 const updateMocks = vi.hoisted(() => ({
@@ -158,6 +162,7 @@ async function clickOutside() {
 }
 
 beforeEach(() => {
+  Object.assign(updatePolicy, { app: true, jdbc: true });
   // 默认没有历史版本：只有专门的历史版本用例才提供发布记录
   updateMocks.fetchChangelogIndex.mockResolvedValue({ updatedAt: "", releases: [] });
   updateMocks.fetchChangelogRelease.mockResolvedValue({ tag: "", name: "", date: "", sections: [] });
@@ -921,5 +926,15 @@ describe("UpdateDialog aggregate update center", () => {
     await flushDialog();
 
     expect(restoreIgnoredVersion).toHaveBeenCalledOnce();
+  });
+});
+
+describe("custom fork update entries", () => {
+  it("hides official app and JDBC tabs even when update metadata is available", async () => {
+    Object.assign(updatePolicy, { app: false, jdbc: false });
+    await mountDialog(0, {}, vi.fn(), { jdbcUpdate: { update_available: true } });
+    expect(document.querySelector('[data-update-tab="app"]')).toBeNull();
+    expect(document.querySelector('[data-update-tab="jdbc"]')).toBeNull();
+    expect(document.querySelector('[data-update-tab="changelog"]')).not.toBeNull();
   });
 });

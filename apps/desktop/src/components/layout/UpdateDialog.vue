@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { OFFICIAL_UPDATE_POLICY } from "@/lib/updates/officialUpdatePolicy";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { AlertTriangle, CheckCircle2, ChevronDown, Loader2, RefreshCw } from "@lucide/vue";
@@ -135,17 +136,17 @@ const olderReleasesExpanded = ref(false);
 
 const tabs = computed(() => {
   const available: Array<{ id: UpdateTab; label: string; count: number }> = [];
-  // 客户端页签常驻：既承载更新流程，也是“回退到旧版本”的入口
-  available.push({ id: "app", label: t("settings.updateClient"), count: hasAppUpdate.value ? 1 : 0 });
+  // 定制版隐藏官方客户端更新及历史版本回退入口。
+  if (OFFICIAL_UPDATE_POLICY.app) available.push({ id: "app", label: t("settings.updateClient"), count: hasAppUpdate.value ? 1 : 0 });
   if (props.driverUpdates.length) available.push({ id: "drivers", label: t("settings.updateDrivers"), count: props.driverUpdates.length });
-  if (props.jdbcUpdate?.update_available) available.push({ id: "jdbc", label: t("settings.updateJdbc"), count: 1 });
+  if (OFFICIAL_UPDATE_POLICY.jdbc && props.jdbcUpdate?.update_available) available.push({ id: "jdbc", label: t("settings.updateJdbc"), count: 1 });
   if (mcpAvailable.value) available.push({ id: "mcp", label: t("settings.updateMcp"), count: 1 });
   if (props.pluginUpdates.length) available.push({ id: "plugins", label: t("settings.updatePlugins"), count: props.pluginUpdates.length });
   available.push({ id: "changelog", label: t("settings.changelogTitle"), count: 0 });
   return available;
 });
 const totalUpdateCount = computed(() => tabs.value.reduce((total, tab) => total + tab.count, 0));
-const hasComponentUpdates = computed(() => props.driverUpdates.length > 0 || props.jdbcUpdate?.update_available === true || mcpAvailable.value || props.pluginUpdates.length > 0);
+const hasComponentUpdates = computed(() => props.driverUpdates.length > 0 || (OFFICIAL_UPDATE_POLICY.jdbc && props.jdbcUpdate?.update_available === true) || mcpAvailable.value || props.pluginUpdates.length > 0);
 const selectedCategory = computed<ComponentUpdateCategory | null>(() => (selectedTab.value === "app" || selectedTab.value === "changelog" ? null : selectedTab.value));
 const selectedCategoryHasUpdate = computed(() => {
   if (selectedTab.value === "drivers") return props.driverUpdates.length > 0;
@@ -197,9 +198,9 @@ function selectTab(tab: UpdateTab) {
   selectedTab.value = tab;
 }
 
-// 客户端页签常驻，但它没有更新时不应抢占默认落点：优先显示真正有待更新内容的页签
+// 优先显示有待更新内容的页签，否则显示第一个可用页签。
 function pickDefaultTab(nextTabs: Array<{ id: UpdateTab; count: number }>): UpdateTab {
-  return nextTabs.find((tab) => tab.count > 0)?.id ?? "app";
+  return nextTabs.find((tab) => tab.count > 0)?.id ?? nextTabs[0]?.id ?? "changelog";
 }
 
 watch(

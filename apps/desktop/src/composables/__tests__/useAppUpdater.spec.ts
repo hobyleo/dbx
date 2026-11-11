@@ -3,6 +3,10 @@ import { createApp, defineComponent, h, reactive, nextTick, type App } from "vue
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import { effectiveUpdateInfo, isNewerRemoteVersion, isPreparedUpdateObsolete, resolveReleaseTagUrl, resolveUpdateReleaseUrl, useAppUpdater } from "@/composables/useAppUpdater";
+// Existing cases exercise the upstream-enabled paths; fork cases below disable them.
+const updatePolicy = vi.hoisted(() => ({ app: true, jdbc: true }));
+vi.mock("@/lib/updates/officialUpdatePolicy", () => ({ OFFICIAL_UPDATE_POLICY: updatePolicy }));
+
 const mocks = vi.hoisted(() => ({
   checkForUpdates: vi.fn(),
   downloadUpdate: vi.fn(),
@@ -53,6 +57,7 @@ async function flush() {
   await nextTick();
 }
 beforeEach(() => {
+  Object.assign(updatePolicy, { app: true, jdbc: true });
   vi.resetAllMocks();
   vi.stubEnv("VITE_DBX_DISABLE_UPDATER", "");
   settings.updateDownloadSource = "official";
@@ -771,5 +776,23 @@ describe("ignoring a version (#13626)", () => {
     await flush();
 
     expect(updater.ignoredReleaseVersion.value).toBe("");
+  });
+});
+
+describe("custom fork updates", () => {
+  it("blocks cached installation and manual or automatic official app updates", async () => {
+    updatePolicy.app = false;
+    mocks.getDownloadedUpdate.mockResolvedValue(cache);
+    const updater = mount();
+    await updater.initialize();
+    await flush();
+    await updater.checkUpdates();
+    await updater.downloadUpdateInBackground();
+    await updater.installDownloadedUpdate();
+    expect(mocks.getDownloadedUpdate).not.toHaveBeenCalled();
+    expect(mocks.checkForUpdates).not.toHaveBeenCalled();
+    expect(mocks.downloadUpdate).not.toHaveBeenCalled();
+    expect(mocks.installDownloadedUpdate).not.toHaveBeenCalled();
+    expect(updater.hasUpdateAvailable.value).toBe(false);
   });
 });

@@ -43,6 +43,7 @@ import { useToast } from "@/composables/useToast";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { isSystemAppThemeMode, type AppThemeMode } from "@/lib/app/appTheme";
 import { formatShortcutTooltip } from "@/lib/editor/shortcutDisplay";
+import { OFFICIAL_UPDATE_POLICY } from "@/lib/updates/officialUpdatePolicy";
 
 const GithubIcon = {
   render() {
@@ -117,7 +118,7 @@ const { toast } = useToast();
 const settingsStore = useSettingsStore();
 const toolbarItems = computed(() => settingsStore.editorSettings.toolbarItems);
 const webLogoPosition = computed(() => settingsStore.editorSettings.webLogoPosition ?? "left");
-const showToolbarUpdateEntry = computed(() => toolbarItems.value.checkUpdates);
+const showToolbarUpdateEntry = computed(() => OFFICIAL_UPDATE_POLICY.app && toolbarItems.value.checkUpdates);
 const { isMac, isDesktop, showControls, isMaximized, isFullscreen, isAlwaysOnTop, minimize, toggleMaximize, toggleAlwaysOnTop, close } = useWindowControls();
 // The always-on-top control is opt-in (外观 → 工具栏): the right side of the
 // toolbar is the most crowded strip in the app. It stays visible while the

@@ -22,6 +22,9 @@ const DATABASE_AS_EXECUTION_SCHEMA_TYPES = new Set<DatabaseType>(["hive", "kyuub
 const CONNECTION_ROOT_SCHEMA_TYPES = new Set<DatabaseType>(["oracle", "dameng", "oceanbase-oracle"]);
 
 const JDBC_DIALECT_MATCHERS: Array<{ type: DatabaseType; patterns: RegExp[] }> = [
+  // ASE 12 has neither LIMIT/OFFSET nor modern SQL Server metadata. Keep the
+  // generic JDBC path, schema qualification, and driver-side row skipping.
+  { type: "jdbc", patterns: [/jdbc:jtds:sybase:/i, /jdbc:sybase:/i, /sybase-ase/i, /\bsybase\b/i] },
   { type: "databend", patterns: [/jdbc:databend:/i, /com\.databend\.jdbc\.DatabendDriver/i, /databend-jdbc/i] },
   { type: "starrocks", patterns: [/starrocks/i] },
   // Phoenix remains a generic JDBC connection, but exposes queryable schemas.

@@ -1,9 +1,10 @@
 import type { ConnectionConfig } from "@/types/database";
 import { PHOENIX_JDBC_PRODUCT_PROFILE } from "@/lib/database/phoenixConnection";
+import { SYBASE_JDBC_PRODUCT_PROFILE } from "@/lib/database/sybaseConnection";
 import { createJdbcProductProfileRegistry, ensureJdbcProductRuntimeDrivers, isJdbcProductRuntimeInstallError, jdbcProductProfileMatches, validateJdbcProductManagedDriver, type JdbcProductProfileDefinition, type JdbcProductRuntimeApi } from "@/lib/database/jdbcProductProfile";
 import { managedJdbcDriverDefinition } from "@/lib/database/managedJdbcDrivers";
 
-export const JDBC_PRODUCT_PROFILES = [PHOENIX_JDBC_PRODUCT_PROFILE] as const satisfies readonly JdbcProductProfileDefinition[];
+export const JDBC_PRODUCT_PROFILES = [PHOENIX_JDBC_PRODUCT_PROFILE, SYBASE_JDBC_PRODUCT_PROFILE] as const satisfies readonly JdbcProductProfileDefinition[];
 
 const jdbcProductProfileRegistry = createJdbcProductProfileRegistry(JDBC_PRODUCT_PROFILES);
 for (const profile of JDBC_PRODUCT_PROFILES) {

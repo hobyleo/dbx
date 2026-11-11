@@ -1592,6 +1592,7 @@ public final class DbxJdbcPlugin {
         try (Statement statement = conn.createStatement()) {
             trackActiveStatement(statement);
             if (connectionState().closing) throw new SQLException("JDBC logical session is closed");
+            applySybaseRowLimit(connection, statement, sql, maxRows, rowOffset);
             applyStatementOptions(statement, maxRows, fetchSize, timeoutSecs, quirks);
             boolean nativeJob = connectionState().nativeJobSession != null;
             String trimmedSql = nativeJob ? sql : trimStatementSql(sql, isOracleUrl(jdbcUrl(connection)));
@@ -1895,6 +1896,7 @@ public final class DbxJdbcPlugin {
         }
         try {
             if (connectionState().closing) throw new SQLException("JDBC logical session is closed");
+            applySybaseRowLimit(connection, statement, sql, maxRows, 0);
             applyStatementOptions(statement, maxRows, fetchSize, timeoutSecs, quirks);
             String trimmedSql = trimStatementSql(sql, isOracleUrl(jdbcUrl(connection)));
             String effectiveSql = rewritePhoenixSystemCatalogQuery(connection, conn, trimmedSql);
@@ -2716,6 +2718,18 @@ public final class DbxJdbcPlugin {
         }
     }
 
+    static void applySybaseRowLimit(JsonNode connection, Statement statement, String sql, int maxRows, int rowOffset)
+        throws SQLException {
+        // jTDS implements this using session ROWCOUNT, which also affects DML.
+        // Restrict it to SELECTs such as the generated table-browser query.
+        if (isSybaseConnection(connection) && sql != null && sql.stripLeading().matches("(?is)^select\\s+.*")) {
+            // Bound the server result as well as the read loop. jTDS otherwise
+            // drains unread rows when closing the result, even for page one.
+            // Include skipped rows and one extra row to detect another page.
+            statement.setMaxRows((int) Math.min(Integer.MAX_VALUE, (long) rowOffset + maxRows + 1L));
+        }
+    }
+
     private static void applyStatementOptions(
         Statement statement,
         int maxRows,
@@ -2971,6 +2985,10 @@ public final class DbxJdbcPlugin {
 
     private static boolean isSqlServerConnection(JsonNode connection) {
         String url = optionalText(connection, "connection_string");
+        // jTDS uses the same driver class for SQL Server and Sybase ASE.
+        if (urlMatchesPrefix(url, "jdbc:jtds:sybase:") || urlMatchesPrefix(url, "jdbc:sybase:")) {
+            return false;
+        }
         if (urlMatchesPrefix(url, "jdbc:sqlserver:") || urlMatchesPrefix(url, "jdbc:jtds:sqlserver:")) {
             return true;
         }
@@ -3083,6 +3101,11 @@ public final class DbxJdbcPlugin {
         Connection conn = openConnection(connection);
         JdbcDriverQuirks quirks = driverQuirks(connection);
         String catalog = metadataCatalog(database, quirks);
+        if (catalog != null && isSybaseConnection(connection)) {
+            // jTDS only implements JDBC 3 getSchemas(), which reads owners from
+            // the current catalog rather than the JDBC 4 catalog argument.
+            conn.setCatalog(catalog);
+        }
         if (quirks.useOracleMetadata()) {
             return oracleListSchemas(conn);
         }

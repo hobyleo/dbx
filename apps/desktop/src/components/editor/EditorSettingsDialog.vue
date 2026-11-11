@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { OFFICIAL_UPDATE_POLICY } from "@/lib/updates/officialUpdatePolicy";
 import { SIDEBAR_HOVER_DELAY_MIN, SIDEBAR_HOVER_DELAY_MAX, normalizeSidebarHoverDelay } from "@/lib/sidebar/sidebarHoverSettings";
 import { cleanupMcpHistoryRetention, loadMcpHistoryRetentionLimit, saveMcpHistoryRetentionLimit } from "@/lib/backend/api";
 import { HISTORY_RETENTION_LIMITS, useHistoryRetentionSetting } from "@/composables/useHistoryRetentionSetting";
@@ -606,7 +607,7 @@ const emit = defineEmits<{
   logout: [];
 }>();
 
-const hasAnyUpdate = computed(() => Boolean(props.appUpdateAvailable || (props.driverUpdateCount || 0) > 0 || props.jdbcUpdateAvailable || props.mcpUpdateAvailable || (props.pluginUpdateCount || 0) > 0));
+const hasAnyUpdate = computed(() => Boolean((OFFICIAL_UPDATE_POLICY.app && props.appUpdateAvailable) || (props.driverUpdateCount || 0) > 0 || (OFFICIAL_UPDATE_POLICY.jdbc && props.jdbcUpdateAvailable) || props.mcpUpdateAvailable || (props.pluginUpdateCount || 0) > 0));
 const updateCheckItemKeys = ["app", "drivers", "jdbc", "mcp", "plugins"] as const;
 type UpdateCheckItem = (typeof updateCheckItemKeys)[number];
 const updateCheckLoading = ref<Record<UpdateCheckItem, boolean>>({ app: false, drivers: false, jdbc: false, mcp: false, plugins: false });
@@ -13856,7 +13857,7 @@ LIMIT 100;</pre>
                   </div>
                 </div>
                 <div class="grid gap-2 sm:grid-cols-2">
-                  <div class="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2.5 text-sm">
+                  <div v-if="OFFICIAL_UPDATE_POLICY.app" class="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2.5 text-sm">
                     <button type="button" class="min-w-0 space-y-0.5 rounded-sm text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50" @click="emit('open-update-center')">
                       <div class="font-medium">{{ t("settings.updateClient") }}</div>
                       <div class="flex items-center gap-1.5" :class="updateCheckLoading.app ? 'text-muted-foreground' : props.appUpdateAvailable ? 'text-primary' : 'text-muted-foreground'">
@@ -13882,7 +13883,7 @@ LIMIT 100;</pre>
                       <Switch id="auto-update-drivers" v-model="editAutoUpdateDrivers" :aria-label="t('settings.autoUpdateDrivers')" />
                     </div>
                   </div>
-                  <div class="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2.5 text-sm">
+                  <div v-if="OFFICIAL_UPDATE_POLICY.jdbc" class="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2.5 text-sm">
                     <button type="button" class="min-w-0 space-y-0.5 rounded-sm text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50" @click="emit('open-driver-store', 'jdbc')">
                       <div class="font-medium">{{ t("settings.updateJdbc") }}</div>
                       <div class="flex items-center gap-1.5" :class="updateCheckLoading.jdbc ? 'text-muted-foreground' : props.jdbcUpdateAvailable ? 'text-primary' : 'text-muted-foreground'">

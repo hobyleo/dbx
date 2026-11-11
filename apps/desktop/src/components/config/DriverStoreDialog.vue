@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { OFFICIAL_UPDATE_POLICY } from "@/lib/updates/officialUpdatePolicy";
 import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import { Activity, ExternalLink, Cpu, FolderOpen, FolderSync, MemoryStick, Search, Square, Trash2, Download, RotateCcw, Loader2, RefreshCw, Check, FileArchive, FileUp, X } from "@lucide/vue";
@@ -318,14 +319,14 @@ function updateAgentDrivers(nextDrivers: AgentDriverInfo[]) {
 }
 
 const agentTabUpdateCount = computed(() => drivers.value.filter((d) => d.update_available).length);
-const jdbcTabUpdateCount = computed(() => (jdbcPluginStatus.value?.update_available ? 1 : 0));
+const jdbcTabUpdateCount = computed(() => (OFFICIAL_UPDATE_POLICY.jdbc && jdbcPluginStatus.value?.update_available ? 1 : 0));
 
 function emitDriverUpdateCount() {
   if (!props.updateNotificationsEnabled) {
     emit("update-count-change", 0);
     return;
   }
-  emit("update-count-change", countAvailableDriverUpdates(drivers.value, jdbcPluginStatus.value));
+  emit("update-count-change", countAvailableDriverUpdates(drivers.value, OFFICIAL_UPDATE_POLICY.jdbc ? jdbcPluginStatus.value : null));
 }
 
 function isDriverProgressActive(dbType: string): boolean {
@@ -1292,6 +1293,7 @@ async function loadJdbcPluginStatus() {
 }
 
 async function installJdbcPlugin() {
+  if (!OFFICIAL_UPDATE_POLICY.jdbc && jdbcPluginStatus.value?.installed) return;
   if (isInstallingJdbcPlugin.value) return;
   isInstallingJdbcPlugin.value = true;
   resetJdbcPluginInstallProgress();
@@ -1788,8 +1790,8 @@ watch(driverStoreTab, (tab) => {
                         : t("settings.jdbcPluginIncompatible")
                     }}
                   </span>
-                  <span v-if="jdbcPluginStatus?.installed && jdbcPluginStatus.update_available" class="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-600">→ v{{ jdbcPluginStatus.latest_version }}</span>
-                  <Button v-if="jdbcPluginStatus?.installed && jdbcPluginStatus.update_available" type="button" variant="outline" class="rounded-md" :disabled="isInstallingJdbcPlugin" @click="installJdbcPlugin">
+                  <span v-if="OFFICIAL_UPDATE_POLICY.jdbc && jdbcPluginStatus?.installed && jdbcPluginStatus.update_available" class="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-600">→ v{{ jdbcPluginStatus.latest_version }}</span>
+                  <Button v-if="OFFICIAL_UPDATE_POLICY.jdbc && jdbcPluginStatus?.installed && jdbcPluginStatus.update_available" type="button" variant="outline" class="rounded-md" :disabled="isInstallingJdbcPlugin" @click="installJdbcPlugin">
                     {{ isInstallingJdbcPlugin ? t("common.loading") : t("settings.jdbcPluginUpdate") }}
                   </Button>
                   <Button v-if="jdbcPluginStatus?.installed" type="button" variant="outline" class="rounded-md" :disabled="isUninstallingJdbcPlugin" @click="uninstallJdbcPlugin">
