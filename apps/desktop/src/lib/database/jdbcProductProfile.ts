@@ -42,7 +42,7 @@ export type JdbcProductProfileDefinition = {
 };
 
 export type JdbcProductRuntimeApi = {
-  jdbcPluginStatus: () => Promise<{ installed: boolean; compatible: boolean }>;
+  jdbcPluginStatus: (checkUpdates?: boolean) => Promise<{ installed: boolean; compatible: boolean }>;
   listJdbcMavenBundles: () => Promise<JdbcMavenBundleInfo[]>;
 };
 
@@ -194,7 +194,7 @@ export async function ensureJdbcProductRuntimeDrivers(profile: JdbcProductProfil
   config.jdbc_driver_class = config.jdbc_driver_class?.trim() || defaults.driverClass;
   const configuredPaths = (config.jdbc_driver_paths ?? []).map((path) => path.trim()).filter(Boolean);
 
-  const pluginStatus = await api.jdbcPluginStatus();
+  const pluginStatus = await api.jdbcPluginStatus(false);
   if (!pluginStatus.installed || !pluginStatus.compatible) {
     throw new JdbcProductRuntimeError("plugin-missing", profile);
   }

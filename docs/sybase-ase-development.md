@@ -1,5 +1,10 @@
 # Sybase ASE 12.0 connections
 
+For preparing a redistributable Windows runtime with the custom JDBC plugin,
+jTDS, Java and WebView2, see [Windows custom runtime inputs](windows-custom-runtime.md).
+That preparation is separate from installer integration and does not change the
+development installation described below.
+
 For this development checkout, import `.dbx-dev/dbx-jdbc-plugin-sybase-dev.zip`
 using **Driver Manager > JDBC > Install from local file** first. This package
 contains the local catalog-selection compatibility fix. Then install the
@@ -40,6 +45,10 @@ JAR under JDBC driver paths. An explicitly selected `jtds-*.jar` takes precedenc
 over the managed version, so the same driver as DataGrip can be reused.
 Java 21 is required by the DBX JDBC plugin. jTDS is a pure Java network driver:
 a 32-bit ASE server does not require a 32-bit DBX or JVM.
+
+Connection readiness checks read the installed JDBC plugin manifest locally;
+they do not wait for external release servers. Driver Manager and update checks
+still fetch release information when requested.
 
 ASE connections retain the generic JDBC dialect and use JDBC metadata for the
 object tree. Schema-qualified names distinguish owners such as `dbo`. Table

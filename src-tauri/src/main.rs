@@ -2,6 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+    if dbx_lib::run_bundled_jdbc_check_if_requested() {
+        return;
+    }
     if dbx_lib::run_backup_worker_if_requested() {
         return;
     }

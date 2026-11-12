@@ -40,6 +40,49 @@ describe("connectionStore timeout recovery", () => {
     vi.useRealTimers();
   });
 
+  it.each([false, true])(
+    "waits for Sybase Java installation outside the connect timeout (cancelled: %s)",
+    async (cancelled) => {
+      let finishInstall!: () => void;
+      const ensureBundledJdbcRuntime = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finishInstall = resolve;
+          }),
+      );
+      const connectDb = vi.fn().mockResolvedValue("sybase-1");
+      vi.doMock("@/lib/backend/tauriRuntime", () => ({ isTauriRuntime: () => false }));
+      vi.doMock("@/lib/backend/api", () => ({
+        ensureBundledJdbcRuntime,
+        connectDb,
+        disconnectDb: vi.fn().mockResolvedValue(undefined),
+        deleteSchemaCachePrefix: vi.fn().mockResolvedValue(undefined),
+        saveConnections: vi.fn().mockResolvedValue(undefined),
+        saveSidebarLayout: vi.fn().mockResolvedValue(undefined),
+      }));
+      const { useConnectionStore, CONNECTION_ATTEMPT_CANCELLED_MESSAGE } = await import("@/stores/connectionStore");
+      const store = useConnectionStore();
+      const connection = postgresConnection({ id: "sybase-1", db_type: "jdbc", driver_profile: "sybase-ase", username: "sa", password: "test", connect_timeout_secs: 1 });
+      store.connections = [connection];
+      const ensure = store.ensureConnected(connection.id).catch((error) => error);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(ensureBundledJdbcRuntime).toHaveBeenCalledTimes(1);
+      expect(connectDb).not.toHaveBeenCalled();
+      if (cancelled) await store.cancelConnecting(connection.id);
+      finishInstall();
+      await vi.advanceTimersByTimeAsync(1);
+      const result = await ensure;
+      if (cancelled) {
+        expect(result).toEqual(new Error(CONNECTION_ATTEMPT_CANCELLED_MESSAGE));
+        expect(connectDb).not.toHaveBeenCalled();
+      } else {
+        expect(connectDb).toHaveBeenCalledTimes(1);
+        expect(store.connectedIds.has(connection.id)).toBe(true);
+      }
+    },
+    30_000,
+  );
+
   it("times out connected health checks and falls back to reconnect", async () => {
     const checkConnectionHealth = vi.fn(() => new Promise(() => undefined));
     const connectDb = vi.fn().mockResolvedValue(undefined);

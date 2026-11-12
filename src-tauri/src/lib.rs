@@ -1,4 +1,6 @@
 mod background_backup;
+mod bundled_jdbc;
+pub use bundled_jdbc::run_check_if_requested as run_bundled_jdbc_check_if_requested;
 mod commands;
 mod data_dir;
 pub use background_backup::run_if_requested as run_backup_worker_if_requested;
@@ -2195,6 +2197,9 @@ pub fn run() {
                 default_agent_dir,
             );
 
+            if let Ok(resources) = app.path().resource_dir() {
+                bundled_jdbc::install_if_needed(&resources, &plugin_dir).map_err(std::io::Error::other)?;
+            }
             let state = if let Some(agent_dir) = agent_dir {
                 AppState::new_with_plugin_and_agent_dir_and_app_version(
                     storage,
@@ -2603,6 +2608,7 @@ pub fn run() {
             commands::plugins::delete_jdbc_maven_bundle,
             commands::plugins::delete_jdbc_local_bundle,
             commands::plugins::jdbc_plugin_status,
+            bundled_jdbc::ensure_bundled_jdbc_runtime,
             commands::plugins::install_jdbc_plugin,
             commands::plugins::install_jdbc_plugin_local,
             commands::plugins::uninstall_jdbc_plugin,

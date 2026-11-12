@@ -37,11 +37,13 @@ describe("Sybase ASE 12 jTDS connections", () => {
       jdbc_driver_paths: ["C:\\drivers\\jtds-1.2.8.jar"],
     } as ConnectionConfig;
     const originalUrl = config.connection_string;
+    const jdbcPluginStatus = vi.fn(async () => ({ installed: true, compatible: true }));
     const result = await ensureJdbcProductRuntimeDrivers(SYBASE_JDBC_PRODUCT_PROFILE, config, {
-      jdbcPluginStatus: async () => ({ installed: true, compatible: true }),
+      jdbcPluginStatus,
       listJdbcMavenBundles: async () => [],
     });
     expect(result?.paths).toEqual(["C:\\drivers\\jtds-1.2.8.jar"]);
+    expect(jdbcPluginStatus).toHaveBeenCalledWith(false);
     expect(config.connection_string).toBe(originalUrl);
     expect(config.jdbc_driver_class).toBe(SYBASE_JTDS_DRIVER_CLASS);
   });

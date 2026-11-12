@@ -143,6 +143,7 @@ describe("jdbcProductProfile", () => {
 
     const result = await ensureJdbcProductRuntimeDrivers(profile, connection, api);
 
+    expect(api.jdbcPluginStatus).toHaveBeenCalledWith(false);
     expect(jdbcProductManagedRuntimePaths(profile, [direct, proxy], "proxy")).toEqual([proxy.artifacts[0].path]);
     expect(result?.paths).toEqual(["/etc/fixture", proxy.artifacts[0].path]);
     expect(result?.runtimeSelectionId).toBe("fixture:proxy");
@@ -159,5 +160,19 @@ describe("jdbcProductProfile", () => {
 
     expect(result?.paths).toEqual(connection.jdbc_driver_paths);
     expect(result?.runtimeSelectionId).toBeUndefined();
+  });
+
+  it.each([
+    { installed: false, compatible: true },
+    { installed: true, compatible: false },
+  ])("rejects an unavailable local plugin: %j", async (status) => {
+    const api = {
+      jdbcPluginStatus: vi.fn(async () => status),
+      listJdbcMavenBundles: vi.fn(async () => []),
+    };
+
+    await expect(ensureJdbcProductRuntimeDrivers(profile, config(), api)).rejects.toThrow(profile.missingPluginError);
+    expect(api.jdbcPluginStatus).toHaveBeenCalledWith(false);
+    expect(api.listJdbcMavenBundles).not.toHaveBeenCalled();
   });
 });

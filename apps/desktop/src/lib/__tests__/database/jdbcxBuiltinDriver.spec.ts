@@ -22,7 +22,7 @@ function runtimeApi(paths: string[], bundles: JdbcMavenBundleInfo[] = []) {
   return {
     listJdbcMavenBundles: async () => bundles,
     listJdbcDrivers: async () => paths.map((path) => ({ name: path.split("/").at(-1) ?? path, path, size: 1 })),
-    jdbcPluginStatus: async () => ({ installed: true, compatible: true }),
+    jdbcPluginStatus: vi.fn(async () => ({ installed: true, compatible: true })),
     installJdbcPlugin: vi.fn(async () => undefined),
   };
 }
@@ -103,7 +103,9 @@ describe("jdbcxBuiltinDriver", () => {
       ],
     };
 
-    const result = await ensureJdbcxRuntimeDrivers(config, runtimeApi([], [bundle]));
+    const api = runtimeApi([], [bundle]);
+    const result = await ensureJdbcxRuntimeDrivers(config, api);
+    expect(api.jdbcPluginStatus).toHaveBeenCalledWith(false);
 
     expect(result?.paths).toEqual(["/drivers/mysql-connector-j-9.2.0.jar", "/drivers/jdbcx-driver-0.8.0.jar"]);
   });

@@ -3434,8 +3434,8 @@ export async function deleteJdbcLocalBundle(bundleId: string): Promise<JdbcDrive
   return invoke("delete_jdbc_local_bundle", { bundleId });
 }
 
-export async function jdbcPluginStatus(): Promise<JdbcPluginStatus> {
-  return invoke("jdbc_plugin_status");
+export async function jdbcPluginStatus(checkUpdates = true): Promise<JdbcPluginStatus> {
+  return invoke("jdbc_plugin_status", { checkUpdates });
 }
 
 export async function installJdbcPlugin(): Promise<JdbcPluginStatus> {
@@ -3511,6 +3511,10 @@ export async function uninstallAgent(dbType: string): Promise<void> {
 
 export async function getAgentJavaRuntimeConfig(): Promise<JavaRuntimeConfig> {
   return invoke("get_agent_java_runtime_config");
+}
+
+export async function ensureBundledJdbcRuntime(config: ConnectionConfig): Promise<void> {
+  return invoke("ensure_bundled_jdbc_runtime", { config });
 }
 
 export async function setAgentJavaRuntimeConfig(config: JavaRuntimeConfig): Promise<JavaRuntimeConfig> {

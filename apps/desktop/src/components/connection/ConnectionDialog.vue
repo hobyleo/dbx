@@ -2626,6 +2626,10 @@ async function ensureRequiredJdbcxDriverInstalled(config: ConnectionConfig): Pro
 }
 
 async function ensureRequiredJdbcProductRuntimeInstalled(config: ConnectionConfig): Promise<void> {
+  if (config.db_type === "jdbc") {
+    testResult.value = { ok: true, message: t("connection.gaussdbMJdbcPluginInstalling") };
+    await api.ensureBundledJdbcRuntime(config);
+  }
   const result = await ensureRegisteredJdbcProductRuntimeDrivers(config, api);
   if (!result) return;
   notifyComponentUpdatesChanged();

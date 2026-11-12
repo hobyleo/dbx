@@ -9,7 +9,7 @@ const JDBCX_HIGH_PRIVILEGE_EXTENSIONS_JAVA_OPTION_PREFIX = "-Ddbx.jdbcx.allowHig
 export type JdbcxRuntimeDriverApi = {
   listJdbcDrivers: () => Promise<JdbcDriverInfo[]>;
   listJdbcMavenBundles: () => Promise<JdbcMavenBundleInfo[]>;
-  jdbcPluginStatus: () => Promise<{ installed: boolean; compatible: boolean }>;
+  jdbcPluginStatus: (checkUpdates?: boolean) => Promise<{ installed: boolean; compatible: boolean }>;
   installJdbcPlugin: () => Promise<unknown>;
 };
 
@@ -93,7 +93,7 @@ export async function ensureJdbcxRuntimeDrivers(config: ConnectionConfig, api: J
   config.connection_string = config.connection_string?.trim() || JDBCX_DEFAULT_URL;
   config.jdbc_driver_class = config.jdbc_driver_class?.trim() || JDBCX_JDBC_DRIVER_CLASS;
   const configuredPaths = (config.jdbc_driver_paths ?? []).map((path) => path.trim()).filter(Boolean);
-  const pluginStatus = await api.jdbcPluginStatus();
+  const pluginStatus = await api.jdbcPluginStatus(false);
   if (!pluginStatus.installed || !pluginStatus.compatible) {
     onInstalling?.([]);
     await api.installJdbcPlugin();

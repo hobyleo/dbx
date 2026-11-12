@@ -5443,6 +5443,10 @@ export const useConnectionStore = defineStore("connection", () => {
   }
 
   async function connectDbWithPasswordRetry(config: ConnectionConfig, localAttempt: number): Promise<{ config: ConnectionConfig; id: string; rememberPassword: boolean }> {
+    if (config.db_type === "jdbc" && config.driver_profile === "sybase-ase") {
+      await api.ensureBundledJdbcRuntime(config);
+      ensureLocalConnectionAttemptActive(config.id, localAttempt);
+    }
     try {
       const id = await withConnectionAttemptTimeout(api.connectDb(config, localAttempt), config);
       return { config, id, rememberPassword: false };

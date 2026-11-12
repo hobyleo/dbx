@@ -1,7 +1,7 @@
 use std::path::{Component, Path as FsPath};
 use std::sync::Arc;
 
-use axum::extract::{Multipart, Path, State};
+use axum::extract::{Multipart, Path, Query, State};
 use axum::Json;
 use dbx_core::agent_service::AgentProgressEvent;
 use dbx_core::jdbc::{
@@ -124,8 +124,19 @@ pub async fn delete_jdbc_local_bundle(
 
 // ---- JDBC Plugin ----
 
-pub async fn get_jdbc_plugin_status(State(state): State<Arc<WebState>>) -> Result<Json<JdbcPluginStatus>, AppError> {
+#[derive(serde::Deserialize)]
+pub struct JdbcPluginStatusQuery {
+    check_updates: Option<bool>,
+}
+
+pub async fn get_jdbc_plugin_status(
+    State(state): State<Arc<WebState>>,
+    Query(query): Query<JdbcPluginStatusQuery>,
+) -> Result<Json<JdbcPluginStatus>, AppError> {
     let root = state.app.plugins.root_dir();
+    if query.check_updates == Some(false) {
+        return Ok(Json(jdbc::get_jdbc_plugin_status_local(root).map_err(AppError::internal)?));
+    }
     Ok(Json(jdbc::get_jdbc_plugin_status(root).await.map_err(AppError::internal)?))
 }
 

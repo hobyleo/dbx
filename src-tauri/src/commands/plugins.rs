@@ -547,7 +547,13 @@ async fn stop_external_driver_pools(state: &Arc<AppState>, plugin: &InstalledPlu
 }
 
 #[tauri::command]
-pub async fn jdbc_plugin_status(state: State<'_, Arc<AppState>>) -> Result<JdbcPluginStatus, String> {
+pub async fn jdbc_plugin_status(
+    state: State<'_, Arc<AppState>>,
+    check_updates: Option<bool>,
+) -> Result<JdbcPluginStatus, String> {
+    if check_updates == Some(false) {
+        return jdbc::get_jdbc_plugin_status_local(state.plugins.root_dir());
+    }
     jdbc::get_jdbc_plugin_status(state.plugins.root_dir()).await
 }
 

@@ -385,6 +385,11 @@ pub async fn get_jdbc_plugin_status(plugins_root: &Path) -> Result<JdbcPluginSta
     jdbc_plugin_status_from_dir(&plugins_root.join("jdbc")).await
 }
 
+/// Connection readiness checks must not wait for release servers.
+pub fn get_jdbc_plugin_status_local(plugins_root: &Path) -> Result<JdbcPluginStatus, String> {
+    jdbc_plugin_status_from_dir_local(&plugins_root.join("jdbc"))
+}
+
 pub async fn install_jdbc_plugin(plugins_root: &Path) -> Result<JdbcPluginStatus, String> {
     install_jdbc_plugin_with_progress(plugins_root, |_| {}).await
 }
@@ -1708,6 +1713,37 @@ mod tests {
         assert_eq!(drivers[0].name, "env-driver.jar");
 
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn local_plugin_status_validates_installation_without_release_metadata() {
+        let root = tempfile::tempdir().unwrap();
+        let missing = get_jdbc_plugin_status_local(root.path()).unwrap();
+        assert!(!missing.installed);
+        assert!(missing.latest_version.is_none());
+
+        let plugin_dir = root.path().join("jdbc");
+        std::fs::create_dir_all(&plugin_dir).unwrap();
+        for (protocol_version, compatible) in [(SUPPORTED_PLUGIN_PROTOCOL_VERSION, true), (999, false)] {
+            std::fs::write(
+                plugin_dir.join("manifest.json"),
+                serde_json::json!({
+                    "id": "jdbc", "name": "DBX JDBC Plugin", "version": "0.1.52",
+                    "protocol_version": protocol_version, "executable": "bin/dbx-jdbc-plugin", "drivers": []
+                })
+                .to_string(),
+            )
+            .unwrap();
+            let status = get_jdbc_plugin_status_local(root.path()).unwrap();
+            assert!(status.installed);
+            assert_eq!(status.compatible, compatible);
+            assert_eq!(status.version.as_deref(), Some("0.1.52"));
+            assert!(status.latest_version.is_none());
+            assert!(!status.update_available);
+        }
+
+        std::fs::write(plugin_dir.join("manifest.json"), "invalid JSON").unwrap();
+        assert!(get_jdbc_plugin_status_local(root.path()).is_err());
     }
 
     #[tokio::test]

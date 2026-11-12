@@ -35,6 +35,7 @@ const { store, settings, backend } = vi.hoisted(() => ({
     connectDb: vi.fn(),
     disconnectDb: vi.fn(),
     testConnectionWithInfo: vi.fn(),
+    ensureBundledJdbcRuntime: vi.fn().mockResolvedValue(undefined),
     listDatabases: vi.fn(),
     listPlugins: vi.fn(),
     listJdbcDrivers: vi.fn(),

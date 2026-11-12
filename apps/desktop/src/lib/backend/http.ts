@@ -1006,8 +1006,8 @@ export async function deleteJdbcLocalBundle(bundleId: string): Promise<JdbcDrive
   return del(`/api/jdbc/drivers/local/${encodeURIComponent(bundleId)}`);
 }
 
-export async function jdbcPluginStatus(): Promise<JdbcPluginStatus> {
-  return get("/api/jdbc/plugin/status");
+export async function jdbcPluginStatus(checkUpdates = true): Promise<JdbcPluginStatus> {
+  return get(checkUpdates ? "/api/jdbc/plugin/status" : "/api/jdbc/plugin/status?check_updates=false");
 }
 
 export async function installJdbcPlugin(): Promise<JdbcPluginStatus> {
@@ -1162,6 +1162,10 @@ export const importAgentJar = importAgentDriver;
 
 export async function reinstallJre(jreKey?: string, _source?: UpdateDownloadSource, operationId?: string): Promise<void> {
   await post("/api/agents/reinstall-jre", { jreKey, operationId });
+}
+
+export async function ensureBundledJdbcRuntime(_config: ConnectionConfig): Promise<void> {
+  // Desktop installer resources are not used by the web runtime.
 }
 
 export async function uninstallJre(jreKey: string): Promise<void> {
