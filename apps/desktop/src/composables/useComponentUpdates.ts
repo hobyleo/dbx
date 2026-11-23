@@ -2,7 +2,7 @@ import { OFFICIAL_UPDATE_POLICY } from "@/lib/updates/officialUpdatePolicy";
 import { computed, ref } from "vue";
 import * as api from "@/lib/backend/api";
 import { currentLocale } from "@/i18n";
-import { buildMarketplacePluginListings, pluginSourceChange, type MarketplacePluginListing } from "@/lib/plugins/pluginMarketplace";
+import { buildMarketplacePluginListings, markPluginRequiresNewerDbx, parsePluginIncompatibility, pluginSourceChange, type MarketplacePluginListing } from "@/lib/plugins/pluginMarketplace";
 import { mcpUpdateAvailability } from "@/lib/mcp/mcpUpdateStatus";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { isUpdatePreviewMockEnabled, previewDriverUpdates, previewJdbcUpdate, previewMcpUpdate, previewPluginUpdates } from "@/lib/updates/updatePreviewMock";
@@ -220,6 +220,18 @@ export function useComponentUpdates(options: { isDesktop: boolean }) {
         result.plugins += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
+        const incompatibility = parsePluginIncompatibility(message);
+        if (incompatibility) {
+          // The catalog did not warn, so the package manifest refused the update. Remember the
+          // exact version for this session: the refreshed listing turns it into
+          // "requires-newer-dbx" (or "incompatible" when upgrading cannot help), which drops it
+          // from the update count and from the next auto pass.
+          markPluginRequiresNewerDbx(listing.repository.id, listing.plugin.id, listing.plugin.latestVersion, {
+            requirement: incompatibility.requirement,
+            hostApi: incompatibility.hostApi,
+            upgradeRequired: incompatibility.upgradeRequired,
+          });
+        }
         const block = pluginUpdateBlock(listing.name, message);
         if (block) result.blockedPlugins.push(block);
         result.failed.push(`${listing.name}: ${message}`);

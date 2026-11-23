@@ -79,7 +79,7 @@ The script never installs Java globally or modifies the registry.
 `target/custom-runtime/windows-x64/` contains:
 
 - `jdbc-plugin.zip` and `jdbc/`: the custom JDBC plugin rebuilt from this
-  checkout, including the Sybase row-limit fix; upstream plugin version 0.1.52
+  checkout, including the Sybase row-limit fix; upstream plugin version 0.1.55
   is retained, while source hashes identify the custom build.
 - `drivers/jtds-1.3.1.jar`: the exact driver version used during development.
 - `jre/`: a self-contained Java runtime generated with `jlink`, retaining all
